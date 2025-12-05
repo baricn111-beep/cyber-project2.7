@@ -1,14 +1,19 @@
 import socket
 
 HOST = "127.0.0.1"
-PORT = 6776
+PORT = 678
+
 
 def receive_file(sock):
-    """מקבל קובץ מהשרת ושומר אותו"""
-    # מקבל את שם הקובץ (למטרה שלך אפשר לשמור בשם קבוע)
+    """
+    Receive a file sent by the server and save it locally.
+
+    The server first sends the file size as text.
+    After receiving the size, the client reads the binary data
+    in chunks until all bytes have been received.
+    """
     filename = "received_screenshot.jpg"
 
-    # מקבל את גודל הקובץ
     size_data = sock.recv(1024).decode().strip()
     if size_data.startswith("ERROR"):
         print("Server response:", size_data)
@@ -17,23 +22,36 @@ def receive_file(sock):
     filesize = int(size_data)
     print(f"[CLIENT] Receiving screenshot ({filesize} bytes)...")
 
-    # מקבל את תוכן הקובץ
     received = 0
-    with open(filename, "wb") as f:
+    with open(filename, "wb") as file:
         while received < filesize:
             chunk = sock.recv(4096)
             if not chunk:
                 break
-            f.write(chunk)
+            file.write(chunk)
             received += len(chunk)
 
     print(f"[CLIENT] Screenshot saved to {filename}")
 
+
 def main():
+    """
+    Connect to the server, send user commands,
+    and process responses including file transfers.
+    """
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((HOST, PORT))
 
-    print("Connected to server. Commands: DIR <path>, DELETE <file>, COPY <src> <dst>, EXECUTE <path>, TAKE_SCREENSHOT, SEND_PHOTO, EXIT")
+    print(
+        "Available commands: "
+        " DIR <path> "
+        " DELETE <file> "
+        " COPY <src> <dst> "
+        " EXECUTE <path> "
+        " TAKE_SCREENSHOT "
+        " SEND_PHOTO "
+        " EXIT"
+    )
 
     while True:
         cmd = input("Enter command: ").strip()
@@ -42,12 +60,12 @@ def main():
 
         client_socket.sendall(cmd.encode())
 
-        # פקודה שמחזירה קובץ
+        # The SEND_PHOTO command transfers a binary file.
         if cmd.upper() == "SEND_PHOTO":
             receive_file(client_socket)
             continue
 
-        # שאר הפקודות מחזירות טקסט
+        # Other commands return a text response.
         data = client_socket.recv(100000).decode()
         print("Server response:", data)
 
@@ -55,7 +73,8 @@ def main():
             break
 
     client_socket.close()
-    print("Disconnected.")
+    print("Disconnected from server.")
+
 
 if __name__ == "__main__":
     main()
